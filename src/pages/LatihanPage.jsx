@@ -1,69 +1,20 @@
+// src/pages/LatihanPage.jsx
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "../supabase/client";
 import { useAuth } from "../hooks/useAuth";
 import { HiArrowLeft } from "react-icons/hi";
+
+// Import UI Components
+import Button from "../components/ui/Button";
+import Card from "../components/ui/Card";
+import Alert from "../components/ui/Alert";
+import Modal from "../components/ui/Modal";
+import { Spinner, Progress } from "../components/ui/Etc";
+
+// Feedback Section
 import FeedbackSection from "../components/FeedbackSection";
 
-// Card
-const Card = ({ children }) => (
-  <div className="bg-white p-6 rounded-xl shadow-md border">{children}</div>
-);
-
-// Button
-const UIButton = ({ children, color = "gray", disabled, ...props }) => {
-  const colors = {
-    blue: "bg-blue-600 text-white hover:bg-blue-700",
-    gray: "bg-gray-200 text-gray-700 hover:bg-gray-300",
-    success: "bg-green-600 text-white",
-    failure: "bg-red-600 text-white",
-    light: "bg-white border text-gray-700 hover:bg-gray-50",
-  };
-
-  return (
-    <button
-      {...props}
-      disabled={disabled}
-      className={`
-        px-4 py-2 rounded-lg font-medium flex items-center
-        ${colors[color]}
-        ${disabled ? "opacity-50 cursor-not-allowed" : ""}
-      `}
-    >
-      {children}
-    </button>
-  );
-};
-
-// Spinner
-const Spinner = () => (
-  <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-gray-900"></div>
-);
-
-// Progress Bar
-const Progress = ({ progress }) => (
-  <div className="w-full bg-gray-200 rounded-full h-4 overflow-hidden">
-    <div className="bg-blue-600 h-4" style={{ width: `${progress}%` }}></div>
-  </div>
-);
-
-// Alert
-const Alert = ({ color = "blue", children }) => {
-  const colors = {
-    failure: "bg-red-100 text-red-700 border-red-300",
-    warning: "bg-yellow-100 text-yellow-700 border-yellow-300",
-    success: "bg-green-100 text-green-700 border-green-300",
-    info: "bg-blue-100 text-blue-700 border-blue-300",
-  };
-
-  return (
-    <div className={`p-4 border rounded-lg ${colors[color]}`}>{children}</div>
-  );
-};
-
-// =======================================
-// LatihanPage — versi TANPA Flowbite-React
-// =======================================
 export default function LatihanPage() {
   const getOptionKey = (index) => String.fromCharCode(65 + index);
 
@@ -83,7 +34,7 @@ export default function LatihanPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
 
-  // Load soal
+  // Load soal dari Supabase
   useEffect(() => {
     const fetchQuestions = async () => {
       if (!id) return;
@@ -130,12 +81,10 @@ export default function LatihanPage() {
     setLastAnswerIsCorrect(correct);
     setAnswered(true);
 
-    setUserAnswers([
-      ...userAnswers,
+    setUserAnswers((prev) => [
+      ...prev,
       { question: current.id, isCorrect: correct },
     ]);
-
-    console.log(questions);
   };
 
   const handleNextQuestion = () => {
@@ -173,7 +122,7 @@ export default function LatihanPage() {
         status,
         attempts,
       },
-      { onConflict: "user_id,material_id" } // TANPA SPASI
+      { onConflict: "user_id,material_id" }
     );
 
     navigate(`/result/${id}`, {
@@ -186,7 +135,8 @@ export default function LatihanPage() {
     });
   };
 
-  // ===== STATES =====
+  // ===== Render States =====
+
   if (loading && questions.length === 0)
     return (
       <div className="flex flex-col items-center justify-center h-screen bg-gray-100">
@@ -226,10 +176,10 @@ export default function LatihanPage() {
     <div className="min-h-screen bg-gray-100">
       {/* Navbar */}
       <nav className="flex items-center justify-between p-4 bg-white shadow">
-        <UIButton color="light" onClick={() => navigate("/materi")}>
+        <Button color="light" onClick={() => navigate("/materi")}>
           <HiArrowLeft className="w-5 h-5 mr-2" />
           Kembali
-        </UIButton>
+        </Button>
         <h1 className="text-xl font-bold text-blue-600">{material?.title}</h1>
       </nav>
 
@@ -252,7 +202,7 @@ export default function LatihanPage() {
             {currentQuestion.options.map((value, index) => {
               const key = getOptionKey(index);
               return (
-                <UIButton
+                <Button
                   key={key}
                   color={getButtonColor(key)}
                   disabled={answered}
@@ -261,22 +211,22 @@ export default function LatihanPage() {
                 >
                   <span className="mr-2 font-bold">{key}.</span>
                   {value}
-                </UIButton>
+                </Button>
               );
             })}
           </div>
 
-          {/* Feedback or Check */}
+          {/* Feedback / Next */}
           <div className="mt-8">
             {!answered ? (
               <div className="text-right">
-                <UIButton
+                <Button
                   color="blue"
                   disabled={!selectedAnswer}
                   onClick={handleCheckAnswer}
                 >
                   Cek Jawaban
-                </UIButton>
+                </Button>
               </div>
             ) : (
               <FeedbackSection

@@ -11,6 +11,5 @@ export default {
   },
   // 2. Tambahkan 'flowbite/plugin' ke array 'plugins'
   plugins: [
-    require("flowbite/plugin"), // <-- TAMBAHKAN INI
   ],
 };

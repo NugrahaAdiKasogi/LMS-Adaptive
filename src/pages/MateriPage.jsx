@@ -7,9 +7,8 @@ import { useAuth } from "../hooks/useAuth";
 import {
   HiLockClosed,
   HiArrowRight,
-  HiOutlineLogout,
-  HiCheckCircle,
-  HiExclamation,
+  HiOutlineUserCircle, // <-- Ganti HiOutlineLogout 
+  HiCheckCircle, 
 } from "react-icons/hi";
 
 export default function MateriPage() {
@@ -110,20 +109,24 @@ export default function MateriPage() {
     <div className="min-h-screen bg-gray-50">
       {/* Navbar */}
       <nav className="flex items-center justify-between p-4 bg-white shadow-md">
-        <h1 className="text-2xl font-bold text-blue-600">INQURA</h1>
+                <h1 className="text-2xl font-bold text-blue-600">INQURA</h1>   
+           {" "}
         <div className="flex items-center gap-4">
+                   {" "}
           <span className="hidden text-sm text-gray-600 sm:block">
-            {user.email}
+                        {user.email}         {" "}
           </span>
-
+          {/* --- UBAH TOMBOL INI --- */}         {" "}
           <button
-            onClick={handleLogout}
+            onClick={() => navigate("/profile")} // <-- Arahkan ke /profile
             className="flex items-center px-4 py-2 text-sm text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300"
           >
-            <HiOutlineLogout className="w-5 h-5 mr-2" />
-            Logout
+                        <HiOutlineUserCircle className="w-5 h-5 mr-2" />       
+                Profile          {" "}
           </button>
+                 {" "}
         </div>
+             {" "}
       </nav>
 
       {/* Konten Utama */}
@@ -153,18 +156,22 @@ export default function MateriPage() {
                   {material.title}
                 </h5>
 
-                {/* BADGE STATUS */}
+                {!material.status && (
+                  <span className="px-3 py-1 text-sm font-semibold text-white bg-gray-400 rounded-full">
+                    Belum Mulai
+                  </span>
+                )}
+
                 {material.status === "lulus" && (
-                  <span className="flex items-center px-3 py-1 text-sm font-semibold text-white bg-green-500 rounded-full">
+                  <span className="px-3 py-1 text-sm font-semibold text-white bg-green-500 rounded-full">
                     <HiCheckCircle className="mr-1" />
                     Selesai
                   </span>
                 )}
 
                 {material.status === "mengulang" && (
-                  <span className="flex items-center px-3 py-1 text-sm font-semibold text-white bg-yellow-500 rounded-full">
-                    <HiExclamation className="mr-1" />
-                    Mengulang
+                  <span className="px-2 py-1 text-sm text-white bg-red-500 rounded">
+                    Mode Remedial
                   </span>
                 )}
               </div>

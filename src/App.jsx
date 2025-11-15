@@ -6,12 +6,14 @@ import MateriPage from './pages/MateriPage'
 import LatihanPage from './pages/LatihanPage'
 import ResultPage from './pages/ResultPage'
 import ProgressPage from './pages/ProgressPage'
-import ProtectedRoute from './components/ProtectedRoute' // <-- Impor penjaga
+import MateriDetailPage from './pages/MateriDetailPage' 
+import ProtectedRoute from './components/ProtectedRoute'
+import ProfilePage from './pages/ProfilePage' // <-- Impor halaman baru
 
 
 export default function App() {
   return (
-<BrowserRouter>
+    <BrowserRouter>
       <Routes>
         {/* Rute Publik */}
         <Route path="/" element={<LandingPage />} />
@@ -21,12 +23,13 @@ export default function App() {
         {/* Rute Terlindungi */}
         <Route element={<ProtectedRoute />}>
           <Route path="/materi" element={<MateriPage />} />
-          <Route path="/materi/:id" element={<LatihanPage />} />
+          <Route path="/materi/:id" element={<MateriDetailPage />} />
+          <Route path="/latihan/:id" element={<LatihanPage />} />
           <Route path="/result/:id" element={<ResultPage />} />
           <Route path="/progress" element={<ProgressPage />} />
+          <Route path="/profile" element={<ProfilePage />} />{" "}
         </Route>
-        
       </Routes>
     </BrowserRouter>
-  )
+  );
 }
