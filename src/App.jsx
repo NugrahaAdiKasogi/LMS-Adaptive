@@ -7,7 +7,7 @@ import LatihanPage from './pages/LatihanPage'
 import ResultPage from './pages/ResultPage'
 import ProgressPage from './pages/ProgressPage'
 import ProtectedRoute from './components/ProtectedRoute' // <-- Impor penjaga
-import './App.css'
+
 
 export default function App() {
   return (
