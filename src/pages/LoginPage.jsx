@@ -15,12 +15,23 @@ export default function LoginPage() {
     setLoading(true)
     setError('')
     try {
-      // Panggil fungsi login dari hook
-      await login(email, password)
-      navigate('/materi') // <-- Arahkan ke Halaman Materi setelah sukses
+      // 1. Panggil login dan simpan hasilnya di variabel 'data'
+      const data = await login(email, password)
+      
+      // 2. Ambil role dari data tersebut
+      const role = data.user?.app_metadata?.role
+
+      // 3. Cek logika pengalihan (Redirection Logic)
+      if (role === 'admin') {
+        navigate('/admin') // Arahkan Admin ke sini
+      } else {
+        navigate('/materi') // Arahkan Siswa ke sini
+      }
+
     } catch (error) {
       setError(error.message)
     }
+    
     setLoading(false)
   }
 
