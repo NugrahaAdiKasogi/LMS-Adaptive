@@ -18,6 +18,38 @@ export default function MateriDetailPage() {
     const fetchMaterialDetail = async () => {
       if (!user || !id) return;
 
+      // --- CEK AKSES (ANTI-BYPASS) ---
+      const { data: allMaterials } = await supabase
+        .from("materials")
+        .select("id")
+        .order("id", { ascending: true });
+
+      if (!allMaterials) {
+        setLoading(false);
+        return;
+      }
+
+      const currentId = Number(id);
+      const index = allMaterials.findIndex((m) => m.id === currentId);
+
+      // Materi pertama → selalu boleh
+      if (index > 0) {
+        const prevMaterialId = allMaterials[index - 1].id;
+
+        const { data: prevProgress } = await supabase
+          .from("progress")
+          .select("status")
+          .eq("user_id", user.id)
+          .eq("material_id", prevMaterialId)
+          .single();
+
+        // Jika materi sebelumnya belum lulus → redirect ke halaman locked
+        if (!prevProgress || prevProgress.status !== "lulus") {
+          navigate("/materi-locked", { replace: true });
+          return;
+        }
+      }
+
       setLoading(true);
 
       // 1. Ambil progres siswa untuk materi ini

@@ -13,6 +13,7 @@ import AdminRoute from './components/AdminRoute'; // <-- Impor penjaga admin
 import AdminDashboard from './pages/admin/AdminDashboard'; // <-- Impor halaman admin
 import ManageMateriPage from './pages/admin/ManageMateri'; // <-- Impor halaman kelola materi admin
 import ManageSoalPage from './pages/admin/ManageSoal'; // <-- Impor halaman kelola soal admin
+import RecapNilai from './pages/admin/RacapNilai'
 
 
 export default function App() {
@@ -39,6 +40,7 @@ export default function App() {
           <Route path="/admin" element={<AdminDashboard />} />
           <Route path="/admin/materi" element={<ManageMateriPage />} />
           <Route path="/admin/soal" element={<ManageSoalPage />} />
+          <Route path="/admin/recap" element={<RecapNilai/>} />
         </Route>
       </Routes>
     </BrowserRouter>

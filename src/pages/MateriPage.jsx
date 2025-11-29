@@ -16,17 +16,9 @@ export default function MateriPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const navigate = useNavigate();
 
-  const handleLogout = async () => {
-    try {
-      await logout();
-      navigate("/login");
-    } catch (error) {
-      alert(error.message);
-    }
-  };
 
   useEffect(() => {
     const fetchMateriAndProgress = async () => {

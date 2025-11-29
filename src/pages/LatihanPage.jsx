@@ -105,6 +105,7 @@ export default function LatihanPage() {
     const score = Math.round((correctCount / questions.length) * 100);
     const status = score >= 70 ? "lulus" : "mengulang";
 
+    // --- LOGIKA 1: Update Progress Siswa (Agar dashboard update) ---
     const { data: prev } = await supabase
       .from("progress")
       .select("attempts")
@@ -114,7 +115,8 @@ export default function LatihanPage() {
 
     const attempts = (prev?.attempts || 0) + 1;
 
-    await supabase.from("progress").upsert(
+    // Simpan ke Progress (Upsert/Timpa)
+    const { error: saveError } = await supabase.from("progress").upsert(
       {
         user_id: user.id,
         material_id: id,
@@ -125,6 +127,33 @@ export default function LatihanPage() {
       { onConflict: "user_id,material_id" }
     );
 
+    if (saveError) {
+      setError(saveError.message);
+      setLoading(false);
+      return;
+    }
+
+    // --- LOGIKA 2 (BARU): Simpan Riwayat untuk Admin ---
+    // Kita Insert (bukan upsert) agar data lama tidak hilang
+    const { error: historyError } = await supabase
+      .from("attempt_history")
+      .insert([
+        {
+          user_id: user.id,
+          user_email: user.email, // Kita simpan email juga
+          material_id: id,
+          score: score,
+          status: status,
+          // created_at otomatis diisi database
+        },
+      ]);
+
+    if (historyError) {
+      console.error("Gagal simpan history:", historyError);
+      // Kita tidak stop proses, karena yang penting progress siswa aman
+    }
+
+    // Pindah halaman
     navigate(`/result/${id}`, {
       state: {
         score,

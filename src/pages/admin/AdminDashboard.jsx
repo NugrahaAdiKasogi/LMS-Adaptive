@@ -23,6 +23,19 @@ export default function AdminDashboard() {
           Logout Admin
         </Button>
       </div>
+      <div className="p-6 border rounded-lg bg-green-50 py-4 mt-6">
+        <h3 className="font-bold text-lg mb-2">Rekap Nilai</h3>
+        <p className="text-sm text-gray-600 mb-4">
+          Lihat riwayat pengerjaan siswa.
+        </p>
+        <Button
+          color="success"
+          className="w-full"
+          onClick={() => navigate("/admin/recap")}
+        >
+          Lihat Rekap
+        </Button>
+      </div>
     </div>
   );
 }
