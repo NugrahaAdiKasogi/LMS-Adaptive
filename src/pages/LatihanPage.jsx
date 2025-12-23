@@ -1,98 +1,131 @@
-// src/pages/LatihanPage.jsx
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "../supabase/client";
 import { useAuth } from "../hooks/useAuth";
-import { HiArrowLeft } from "react-icons/hi";
 
-// Import UI Components
+// UI Components
 import Button from "../components/ui/Button";
 import Card from "../components/ui/Card";
-import Alert from "../components/ui/Alert";
+import { Spinner } from "../components/ui/Etc";
 import Modal from "../components/ui/Modal";
-import { Spinner, Progress } from "../components/ui/Etc";
-
-// Feedback Section
 import FeedbackSection from "../components/FeedbackSection";
 
+// Icons
+import { HiCheckCircle, HiXCircle, HiLightningBolt } from "react-icons/hi";
+
 export default function LatihanPage() {
-  const getOptionKey = (index) => String.fromCharCode(65 + index);
+  const { id } = useParams();
+  const { user } = useAuth();
+  const navigate = useNavigate();
 
-  const [material, setMaterial] = useState(null);
+  // State Data
   const [questions, setQuestions] = useState([]);
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [selectedAnswer, setSelectedAnswer] = useState(null);
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [userAnswers, setUserAnswers] = useState([]); // [{ questionId, isCorrect, userAnswer }]
 
-  const [answered, setAnswered] = useState(false);
-  const [lastAnswerIsCorrect, setLastAnswerIsCorrect] = useState(false);
-  const [userAnswers, setUserAnswers] = useState([]);
+  // State Adaptif
+  const [difficultyLevel, setDifficultyLevel] = useState(""); // 'Low' | 'Medium' | 'Hard'
+  const [attemptCount, setAttemptCount] = useState(0);
 
+  // State UI
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const { id } = useParams();
-  const navigate = useNavigate();
-  const { user } = useAuth();
+  // State Feedback Popup
+  const [showFeedbackModal, setShowFeedbackModal] = useState(false);
+  const [currentFeedback, setCurrentFeedback] = useState(null); // { isCorrect, correctAnswer, explanation }
 
-  // Load soal dari Supabase
   useEffect(() => {
-    const fetchQuestions = async () => {
-      if (!id) return;
+    const fetchAdaptiveQuestions = async () => {
+      if (!user || !id) return;
+
       try {
         setLoading(true);
-        setError(null);
 
-        const { data: materialData } = await supabase
-          .from("materials")
-          .select("id, title")
-          .eq("id", id)
+        // 1. Cek Progress Siswa (Sudah mencoba berapa kali?)
+        const { data: progressData } = await supabase
+          .from("progress")
+          .select("attempts")
+          .eq("user_id", user.id)
+          .eq("material_id", id)
           .single();
 
-        setMaterial(materialData);
+        const currentAttempts = progressData?.attempts || 0;
+        setAttemptCount(currentAttempts);
 
-        const { data: questionsData } = await supabase
+        // 2. Tentukan Tingkat Kesulitan (ALGORITMA ADAPTIF)
+        let targetDifficulty = "Hard"; // Default (Percobaan ke-0)
+
+        if (currentAttempts === 1) {
+          targetDifficulty = "Medium"; // Percobaan ke-1 (Remedial Ringan)
+        } else if (currentAttempts >= 2) {
+          targetDifficulty = "Low"; // Percobaan ke-2+ (Remedial Dasar)
+        }
+
+        setDifficultyLevel(targetDifficulty);
+
+        // 3. Ambil Soal Sesuai Level
+        const { data: questionsData, error: qError } = await supabase
           .from("questions")
-          .select("*")
-          .eq("material_id", id);
+          .select(
+            "id, question, options, correct_answer, feedback_salah_popup, difficulty"
+          )
+          .eq("material_id", id)
+          .eq("difficulty", targetDifficulty); // Filter Difficulty
 
-        const shuffled = questionsData.sort(() => Math.random() - 0.5);
-        setQuestions(shuffled);
+        if (qError) throw qError;
+
+        // Fallback: Jika soal level tersebut kosong (belum dibuat admin), ambil semua level
+        if (!questionsData || questionsData.length === 0) {
+          console.warn(
+            `Soal level ${targetDifficulty} kosong, mengambil semua soal.`
+          );
+          const { data: allQuestions } = await supabase
+            .from("questions")
+            .select("*")
+            .eq("material_id", id);
+          setQuestions(allQuestions || []);
+        } else {
+          setQuestions(questionsData);
+        }
       } catch (err) {
-        setError(err.message);
+        console.error(err);
+        setError("Gagal memuat soal latihan.");
       } finally {
         setLoading(false);
       }
     };
 
-    fetchQuestions();
+    fetchAdaptiveQuestions();
   }, [id, user]);
 
-  const handleSelectAnswer = (key) => {
-    if (!answered) setSelectedAnswer(key);
-  };
+  // --- LOGIKA MENJAWAB (Sama seperti sebelumnya) ---
+  const handleAnswer = (selectedOption) => {
+    const currentQ = questions[currentQuestionIndex];
+    const isCorrect = selectedOption === currentQ.correct_answer;
 
-  const handleCheckAnswer = () => {
-    const current = questions[currentIndex];
-    const index = selectedAnswer.charCodeAt(0) - 65;
-    const selectedText = current.options[index];
+    // Simpan jawaban
+    const answerRecord = {
+      questionId: currentQ.id,
+      questionText: currentQ.question,
+      userAnswer: selectedOption,
+      correctAnswer: currentQ.correct_answer,
+      isCorrect: isCorrect,
+      explanation: currentQ.feedback_salah_popup,
+    };
 
-    const correct = selectedText === current.correct_answer;
+    // Update state jawaban user
+    setUserAnswers((prev) => [...prev, answerRecord]);
 
-    setLastAnswerIsCorrect(correct);
-    setAnswered(true);
-
-    setUserAnswers((prev) => [
-      ...prev,
-      { question: current.id, isCorrect: correct },
-    ]);
+    // Tampilkan Feedback Modal
+    setCurrentFeedback(answerRecord);
+    setShowFeedbackModal(true);
   };
 
   const handleNextQuestion = () => {
-    setAnswered(false);
-    setSelectedAnswer(null);
-
-    if (currentIndex < questions.length - 1) {
-      setCurrentIndex(currentIndex + 1);
+    setShowFeedbackModal(false);
+    if (currentQuestionIndex < questions.length - 1) {
+      setCurrentQuestionIndex((prev) => prev + 1);
     } else {
       submitResults();
     }
@@ -101,21 +134,33 @@ export default function LatihanPage() {
   const submitResults = async () => {
     setLoading(true);
 
+    // Hitung Skor (Opsional: Bisa disesuaikan bobotnya per level)
     const correctCount = userAnswers.filter((a) => a.isCorrect).length;
-    const score = Math.round((correctCount / questions.length) * 100);
+    // Tambahkan logika jawaban terakhir ke array temp jika belum masuk (karena state async)
+    // Tapi karena kita pakai flow modal -> next, state userAnswers sudah aman saat submit dipanggil
+    // Namun perlu diperhatikan: userAnswers berisi jawaban SAMPAI soal sebelum terakhir jika submit dipanggil manual
+    // Di sini submit dipanggil oleh handleNextQuestion saat index habis, jadi userAnswers perlu menyertakan soal terakhir.
+    // Koreksi: userAnswers SUDAH diupdate di handleAnswer, jadi aman.
+    // Tapi tunggu, userAnswers di dalam handleAnswer adalah 'prev', update state belum tentu selesai saat submit dipanggil?
+    // Solusi: Kita gunakan userAnswers.length untuk cek, atau hitung manual skor dari parameter jika perlu.
+    // React state update batching aman di sini karena ada jeda interaksi modal.
+
+    // Untuk memastikan data jawaban terakhir masuk, kita ambil dari state + currentFeedback (jika ada yg pending)
+    // Tapi logic modal flow menjamin user klik "Lanjut" dulu.
+
+    // Namun untuk amannya kita gabungkan userAnswers state dengan jawaban terakhir jika userAnswers length < questions length
+    let finalAnswers = [...userAnswers];
+    if (finalAnswers.length < questions.length && currentFeedback) {
+      finalAnswers.push(currentFeedback);
+    }
+
+    const finalCorrectCount = finalAnswers.filter((a) => a.isCorrect).length;
+    const score = Math.round((finalCorrectCount / questions.length) * 100);
     const status = score >= 70 ? "lulus" : "mengulang";
 
-    // --- LOGIKA 1: Update Progress Siswa (Agar dashboard update) ---
-    const { data: prev } = await supabase
-      .from("progress")
-      .select("attempts")
-      .eq("user_id", user.id)
-      .eq("material_id", id)
-      .single();
+    // 1. Update Progress (Upsert)
+    const attempts = attemptCount + 1; // Tambah 1 dari yang diambil di awal
 
-    const attempts = (prev?.attempts || 0) + 1;
-
-    // Simpan ke Progress (Upsert/Timpa)
     const { error: saveError } = await supabase.from("progress").upsert(
       {
         user_id: user.id,
@@ -128,146 +173,152 @@ export default function LatihanPage() {
     );
 
     if (saveError) {
-      setError(saveError.message);
-      setLoading(false);
-      return;
+      console.error(saveError);
     }
 
-    // --- LOGIKA 2 (BARU): Simpan Riwayat untuk Admin ---
-    // Kita Insert (bukan upsert) agar data lama tidak hilang
+    // 2. Simpan Riwayat (Insert History)
     const { error: historyError } = await supabase
       .from("attempt_history")
       .insert([
         {
           user_id: user.id,
-          user_email: user.email, // Kita simpan email juga
+          user_email: user.email,
           material_id: id,
           score: score,
           status: status,
-          // created_at otomatis diisi database
         },
       ]);
 
-    if (historyError) {
-      console.error("Gagal simpan history:", historyError);
-      // Kita tidak stop proses, karena yang penting progress siswa aman
-    }
-
-    // Pindah halaman
+    // Navigate ke Result
     navigate(`/result/${id}`, {
       state: {
         score,
         status,
-        correctCount,
+        correctCount: finalCorrectCount,
         totalCount: questions.length,
       },
     });
   };
 
-  // ===== Render States =====
-
-  if (loading && questions.length === 0)
+  // --- RENDER ---
+  if (loading)
     return (
-      <div className="flex flex-col items-center justify-center h-screen bg-gray-100">
+      <div className="flex h-screen justify-center items-center">
         <Spinner />
-        <p className="mt-4 text-gray-700">Memuat soal...</p>
       </div>
     );
-
   if (error)
+    return <div className="p-10 text-center text-red-500">{error}</div>;
+  if (questions.length === 0)
+    return <div className="p-10 text-center">Tidak ada soal tersedia.</div>;
+
+  const currentQ = questions[currentQuestionIndex];
+  const progressPercent = ((currentQuestionIndex + 1) / questions.length) * 100;
+
+  // Helper warna badge level
+  const getLevelBadge = (level) => {
+    if (level === "Hard")
+      return (
+        <span className="flex items-center gap-1 bg-red-100 text-red-800 px-3 py-1 rounded-full text-sm font-bold border border-red-200">
+          <HiLightningBolt /> Level: HARD
+        </span>
+      );
+    if (level === "Medium")
+      return (
+        <span className="flex items-center gap-1 bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-sm font-bold border border-yellow-200">
+          <HiLightningBolt /> Level: MEDIUM
+        </span>
+      );
     return (
-      <div className="p-4 mt-10">
-        <Alert color="failure">{error}</Alert>
-      </div>
+      <span className="flex items-center gap-1 bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-bold border border-green-200">
+        <HiLightningBolt /> Level: EASY
+      </span>
     );
-
-  if (!user || questions.length === 0)
-    return (
-      <div className="p-4 mt-10">
-        <Alert color="warning">Belum ada soal untuk materi ini.</Alert>
-      </div>
-    );
-
-  const currentQuestion = questions[currentIndex];
-
-  const getButtonColor = (optionKey) => {
-    if (!answered) return selectedAnswer === optionKey ? "blue" : "gray";
-
-    const index = optionKey.charCodeAt(0) - 65;
-    const text = currentQuestion.options[index];
-
-    if (text === currentQuestion.correct_answer) return "success";
-    if (optionKey === selectedAnswer) return "failure";
-    return "gray";
   };
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      {/* Navbar */}
-      <nav className="flex items-center justify-between p-4 bg-white shadow">
-        <Button color="light" onClick={() => navigate("/materi")}>
-          <HiArrowLeft className="w-5 h-5 mr-2" />
-          Kembali
-        </Button>
-        <h1 className="text-xl font-bold text-blue-600">{material?.title}</h1>
-      </nav>
+    <div className="min-h-screen bg-gray-50 flex flex-col items-center p-4">
+      {/* Header Info */}
+      <div className="w-full max-w-2xl flex justify-between items-center mb-4 mt-4">
+        <span className="text-gray-500 font-medium">
+          Soal {currentQuestionIndex + 1} dari {questions.length}
+        </span>
+        {getLevelBadge(difficultyLevel)}
+      </div>
 
-      <main className="max-w-2xl p-4 mx-auto mt-8">
-        <Card>
-          {/* Progress */}
-          <Progress progress={((currentIndex + 1) / questions.length) * 100} />
+      {/* Progress Bar */}
+      <div className="w-full max-w-2xl bg-gray-200 rounded-full h-2.5 mb-6">
+        <div
+          className="bg-blue-600 h-2.5 rounded-full transition-all duration-300"
+          style={{ width: `${progressPercent}%` }}
+        ></div>
+      </div>
 
-          <p className="mt-2 text-sm text-center text-gray-600">
-            Soal {currentIndex + 1} dari {questions.length}
-          </p>
+      {/* Card Soal */}
+      <Card className="w-full max-w-2xl p-6 md:p-10">
+        <h2 className="text-xl md:text-2xl font-bold text-gray-800 mb-8 leading-relaxed">
+          {currentQ.question}
+        </h2>
 
-          {/* Soal */}
-          <h2 className="mt-6 mb-4 text-xl font-semibold">
-            {currentQuestion.question}
-          </h2>
+        <div className="grid grid-cols-1 gap-4">
+          {currentQ.options.map((option, index) => (
+            <button
+              key={index}
+              onClick={() => handleAnswer(option)}
+              className="w-full text-left p-4 rounded-xl border-2 border-gray-200 hover:border-blue-500 hover:bg-blue-50 transition-all font-medium text-gray-700 active:scale-95"
+            >
+              <span className="font-bold mr-3 text-gray-400">
+                {String.fromCharCode(65 + index)}.
+              </span>
+              {option}
+            </button>
+          ))}
+        </div>
+      </Card>
 
-          {/* Options */}
-          <div className="flex flex-col gap-4">
-            {currentQuestion.options.map((value, index) => {
-              const key = getOptionKey(index);
-              return (
-                <Button
-                  key={key}
-                  color={getButtonColor(key)}
-                  disabled={answered}
-                  onClick={() => handleSelectAnswer(key)}
-                  className="w-full text-left"
-                >
-                  <span className="mr-2 font-bold">{key}.</span>
-                  {value}
-                </Button>
-              );
-            })}
-          </div>
+      {/* Modal Feedback Langsung */}
+      <Modal show={showFeedbackModal} onClose={() => {}}>
+        <div className="text-center">
+          {currentFeedback?.isCorrect ? (
+            <HiCheckCircle className="mx-auto h-16 w-16 text-green-500 mb-4" />
+          ) : (
+            <HiXCircle className="mx-auto h-16 w-16 text-red-500 mb-4" />
+          )}
 
-          {/* Feedback / Next */}
-          <div className="mt-8">
-            {!answered ? (
-              <div className="text-right">
-                <Button
-                  color="blue"
-                  disabled={!selectedAnswer}
-                  onClick={handleCheckAnswer}
-                >
-                  Cek Jawaban
-                </Button>
-              </div>
-            ) : (
-              <FeedbackSection
-                isCorrect={lastAnswerIsCorrect}
-                question={currentQuestion}
-                onNext={handleNextQuestion}
-                isLastQuestion={currentIndex === questions.length - 1}
-              />
-            )}
-          </div>
-        </Card>
-      </main>
+          <h3 className="text-xl font-bold text-gray-900 mb-2">
+            {currentFeedback?.isCorrect
+              ? "Jawaban Benar! 🎉"
+              : "Jawaban Kurang Tepat"}
+          </h3>
+
+          {!currentFeedback?.isCorrect && (
+            <div className="bg-red-50 p-4 rounded-lg mb-4 text-left border border-red-100">
+              <p className="text-sm font-bold text-red-800 mb-1">
+                Kunci Jawaban:
+              </p>
+              <p className="text-red-700 mb-2">
+                {currentFeedback?.correctAnswer}
+              </p>
+              <p className="text-sm font-bold text-gray-700 mb-1">
+                Penjelasan:
+              </p>
+              <p className="text-gray-600 text-sm">
+                {currentFeedback?.explanation}
+              </p>
+            </div>
+          )}
+
+          <Button
+            color="blue"
+            className="w-full justify-center mt-4"
+            onClick={handleNextQuestion}
+          >
+            {currentQuestionIndex < questions.length - 1
+              ? "Lanjut ke Soal Berikutnya"
+              : "Lihat Hasil Akhir"}
+          </Button>
+        </div>
+      </Modal>
     </div>
   );
 }
