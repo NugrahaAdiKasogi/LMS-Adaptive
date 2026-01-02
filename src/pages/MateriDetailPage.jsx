@@ -2,7 +2,13 @@ import React, { useState, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { supabase } from "../supabase/client";
 import { useAuth } from "../hooks/useAuth";
-import { HiArrowLeft, HiArrowRight } from "react-icons/hi";
+import { 
+  HiArrowLeft, 
+  HiArrowRight, 
+  HiDocumentDownload, // <-- Jangan lupa import ikon ini
+  HiDocumentText 
+} from "react-icons/hi";
+
 import Button from "../components/ui/Button";
 import Card from "../components/ui/Card";
 import { Spinner } from "../components/ui/Etc";
@@ -11,7 +17,7 @@ export default function MateriDetailPage() {
   const [materialData, setMaterialData] = useState(null);
   const [activeContent, setActiveContent] = useState(null); // { text, video, label, color }
   const [loading, setLoading] = useState(true);
-
+  
   const { id } = useParams();
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -21,10 +27,11 @@ export default function MateriDetailPage() {
       if (!user || !id) return;
       setLoading(true);
 
-      // 1. Ambil Data Materi Lengkap (3 Level)
+      // 1. Ambil Data Materi Lengkap
+      // Kita select '*' jadi kolom file_url otomatis ikut terambil
       const { data: mat, error: matError } = await supabase
         .from("materials")
-        .select("*")
+        .select("*") 
         .eq("id", id)
         .single();
 
@@ -34,7 +41,7 @@ export default function MateriDetailPage() {
         return;
       }
 
-      // 2. Ambil Progress User untuk menentukan Level
+      // 2. Ambil Progress User untuk menentukan Level Adaptif
       const { data: prog } = await supabase
         .from("progress")
         .select("attempts")
@@ -47,34 +54,32 @@ export default function MateriDetailPage() {
       // 3. LOGIKA ADAPTIF (Tentukan Materi & Video)
       let content = {};
 
-      // Jika belum pernah mencoba (Attempt 0) -> Level Hard
       if (attempts === 0) {
+        // Level 1: Hard
         content = {
           text: mat.content_hard,
           video: mat.video_hard,
           label: "Materi Utama (Advanced)",
           color: "bg-red-100 text-red-800 border-red-300",
-          desc: "Pelajari konsep utama ini untuk menghadapi tantangan level Hard.",
+          desc: "Pelajari konsep utama ini untuk menghadapi tantangan level Hard."
         };
-      }
-      // Jika pernah gagal 1x (Attempt 1) -> Level Medium
-      else if (attempts === 1) {
+      } else if (attempts === 1) {
+        // Level 2: Medium
         content = {
           text: mat.content_medium,
           video: mat.video_medium,
           label: "Materi Pendalaman (Intermediate)",
           color: "bg-yellow-100 text-yellow-800 border-yellow-300",
-          desc: "Mari kita ulangi bagian yang mungkin terlewat. Persiapan level Medium.",
+          desc: "Mari kita ulangi bagian yang mungkin terlewat. Persiapan level Medium."
         };
-      }
-      // Jika pernah gagal 2x atau lebih -> Level Easy
-      else {
+      } else {
+        // Level 3: Easy
         content = {
           text: mat.content_easy,
           video: mat.video_easy,
           label: "Materi Dasar (Fundamental)",
           color: "bg-green-100 text-green-800 border-green-300",
-          desc: "Kita mulai dari dasar lagi agar fondasi Anda kuat. Persiapan level Easy.",
+          desc: "Kita mulai dari dasar lagi agar fondasi Anda kuat. Persiapan level Easy."
         };
       }
 
@@ -86,14 +91,8 @@ export default function MateriDetailPage() {
     fetchData();
   }, [id, user]);
 
-  if (loading)
-    return (
-      <div className="flex justify-center h-screen items-center">
-        <Spinner />
-      </div>
-    );
-  if (!materialData)
-    return <div className="p-8 text-center">Materi tidak ditemukan.</div>;
+  if (loading) return <div className="flex justify-center h-screen items-center"><Spinner /></div>;
+  if (!materialData) return <div className="p-8 text-center">Materi tidak ditemukan.</div>;
 
   return (
     <div className="min-h-screen bg-gray-50 pb-10">
@@ -108,10 +107,9 @@ export default function MateriDetailPage() {
       </nav>
 
       <main className="max-w-4xl p-4 mx-auto mt-6">
+        
         {/* Banner Level Adaptif */}
-        <div
-          className={`p-4 rounded-lg border mb-6 flex flex-col md:flex-row gap-4 items-start md:items-center ${activeContent.color}`}
-        >
+        <div className={`p-4 rounded-lg border mb-6 flex flex-col md:flex-row gap-4 items-start md:items-center ${activeContent.color}`}>
           <div className="flex-1">
             <h2 className="font-bold text-lg flex items-center gap-2">
               {activeContent.label}
@@ -137,27 +135,50 @@ export default function MateriDetailPage() {
         )}
 
         {/* Text Content */}
-        <Card className="mb-8">
-          <h3 className="text-2xl font-bold text-gray-800 mb-4 border-b pb-2">
-            Materi Pembelajaran
-          </h3>
+        <Card className="mb-6">
+          <h3 className="text-2xl font-bold text-gray-800 mb-4 border-b pb-2">Materi Pembelajaran</h3>
           <div className="prose max-w-none text-gray-700 whitespace-pre-wrap leading-relaxed">
             {activeContent.text || "Belum ada materi teks untuk level ini."}
           </div>
         </Card>
 
+        {/* --- FITUR BARU: TOMBOL DOWNLOAD PPT --- */}
+        {/* Hanya muncul jika file_url tidak kosong */}
+        {materialData.file_url && (
+          <div className="mb-8">
+            <a 
+              href={materialData.file_url} 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="group flex items-center justify-between p-4 bg-white border border-gray-200 rounded-xl shadow-sm hover:shadow-md hover:border-blue-300 transition-all cursor-pointer no-underline"
+            >
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-blue-50 text-blue-600 rounded-lg group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                  <HiDocumentText className="w-8 h-8" />
+                </div>
+                <div>
+                  <h4 className="font-bold text-gray-800 group-hover:text-blue-600">Materi Presentasi (PPT/PDF)</h4>
+                  <p className="text-sm text-gray-500">Klik untuk mengunduh atau melihat file materi tambahan.</p>
+                </div>
+              </div>
+              <div className="bg-gray-100 p-2 rounded-full text-gray-600 group-hover:bg-blue-100 group-hover:text-blue-600">
+                <HiDocumentDownload className="w-6 h-6" />
+              </div>
+            </a>
+          </div>
+        )}
+        {/* --------------------------------------- */}
+
         {/* Action Button */}
         <div className="flex justify-end">
           <Link to={`/latihan/${materialData.id}`}>
-            <Button
-              color="blue"
-              className="px-8 py-3 text-lg shadow-lg hover:scale-105 transform transition-transform"
-            >
+            <Button color="blue" className="px-8 py-3 text-lg shadow-lg hover:scale-105 transform transition-transform">
               Lanjut ke Latihan
               <HiArrowRight className="w-6 h-6 ml-2" />
             </Button>
           </Link>
         </div>
+
       </main>
     </div>
   );
