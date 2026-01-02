@@ -134,21 +134,7 @@ export default function LatihanPage() {
   const submitResults = async () => {
     setLoading(true);
 
-    // Hitung Skor (Opsional: Bisa disesuaikan bobotnya per level)
-    const correctCount = userAnswers.filter((a) => a.isCorrect).length;
-    // Tambahkan logika jawaban terakhir ke array temp jika belum masuk (karena state async)
-    // Tapi karena kita pakai flow modal -> next, state userAnswers sudah aman saat submit dipanggil
-    // Namun perlu diperhatikan: userAnswers berisi jawaban SAMPAI soal sebelum terakhir jika submit dipanggil manual
-    // Di sini submit dipanggil oleh handleNextQuestion saat index habis, jadi userAnswers perlu menyertakan soal terakhir.
-    // Koreksi: userAnswers SUDAH diupdate di handleAnswer, jadi aman.
-    // Tapi tunggu, userAnswers di dalam handleAnswer adalah 'prev', update state belum tentu selesai saat submit dipanggil?
-    // Solusi: Kita gunakan userAnswers.length untuk cek, atau hitung manual skor dari parameter jika perlu.
-    // React state update batching aman di sini karena ada jeda interaksi modal.
-
-    // Untuk memastikan data jawaban terakhir masuk, kita ambil dari state + currentFeedback (jika ada yg pending)
-    // Tapi logic modal flow menjamin user klik "Lanjut" dulu.
-
-    // Namun untuk amannya kita gabungkan userAnswers state dengan jawaban terakhir jika userAnswers length < questions length
+    // 1. Hitung Nilai
     let finalAnswers = [...userAnswers];
     if (finalAnswers.length < questions.length && currentFeedback) {
       finalAnswers.push(currentFeedback);
@@ -156,18 +142,51 @@ export default function LatihanPage() {
 
     const finalCorrectCount = finalAnswers.filter((a) => a.isCorrect).length;
     const score = Math.round((finalCorrectCount / questions.length) * 100);
-    const status = score >= 70 ? "lulus" : "mengulang";
+    const isPassing = score >= 70;
 
-    // 1. Update Progress (Upsert)
-    const attempts = attemptCount + 1; // Tambah 1 dari yang diambil di awal
+    let nextStatus = "mengulang"; // Default gagal
+    let nextAttempts = attemptCount + 1; // Default: nambah attempts (turun level)
+
+    if (difficultyLevel === "Hard") {
+      if (isPassing) {
+        // SKENARIO 1: Lulus di Hard -> BENAR-BENAR LULUS
+        nextStatus = "lulus";
+        // nextAttempts tidak terlalu penting kalau sudah lulus, tapi biarkan saja
+      } else {
+        // SKENARIO 2: Gagal di Hard -> Turun ke Medium
+        nextStatus = "mengulang";
+        nextAttempts = 1; // Set ke 1 agar sistem membaca ini sebagai 'Medium' nanti
+      }
+    } else if (difficultyLevel === "Medium") {
+      if (isPassing) {
+        // SKENARIO 3: Lulus di Medium -> Naik ke Hard
+        nextStatus = "mengulang"; // Status tetap mengulang agar materi berikutnya belum terbuka
+        nextAttempts = 0; // Set ke 0 agar sistem membaca ini sebagai 'Hard' nanti
+      } else {
+        // SKENARIO 4: Gagal di Medium -> Turun ke Easy
+        nextStatus = "mengulang";
+        nextAttempts = 2; // Set ke 2+ agar sistem membaca ini sebagai 'Easy' nanti
+      }
+    } else {
+      // Level Low / Easy
+      if (isPassing) {
+        // SKENARIO 5: Lulus di Easy -> Naik ke Medium
+        nextStatus = "mengulang";
+        nextAttempts = 1; // Set ke 1 agar sistem membaca ini sebagai 'Medium' nanti
+      } else {
+        // SKENARIO 6: Gagal di Easy -> Tetap di Easy
+        nextStatus = "mengulang";
+        nextAttempts = attemptCount + 1; // Terus bertambah (>2 tetap Easy)
+      }
+    }
 
     const { error: saveError } = await supabase.from("progress").upsert(
       {
         user_id: user.id,
         material_id: id,
         score,
-        status,
-        attempts,
+        status: nextStatus,
+        attempts: nextAttempts, // INI KUNCINYA
       },
       { onConflict: "user_id,material_id" }
     );
@@ -176,24 +195,27 @@ export default function LatihanPage() {
       console.error(saveError);
     }
 
-    // 2. Simpan Riwayat (Insert History)
-    const { error: historyError } = await supabase
-      .from("attempt_history")
-      .insert([
-        {
-          user_id: user.id,
-          user_email: user.email,
-          material_id: id,
-          score: score,
-          status: status,
-        },
-      ]);
+    if (saveError) {
+      console.error(saveError);
+    }
+
+    await supabase.from("attempt_history").insert([
+      {
+        user_id: user.id,
+        user_email: user.email,
+        material_id: id,
+        score: score,
+        status: isPassing ? "Lulus Level" : "Gagal", // Info di history sekadar info
+      },
+    ]);
 
     // Navigate ke Result
     navigate(`/result/${id}`, {
       state: {
         score,
-        status,
+        status: nextStatus, // Ini status materi secara keseluruhan
+        levelPassed: isPassing, // Info tambahan apakah dia lulus level ini atau tidak
+        currentLevel: difficultyLevel,
         correctCount: finalCorrectCount,
         totalCount: questions.length,
       },

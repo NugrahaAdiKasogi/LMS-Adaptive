@@ -1,7 +1,15 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../../supabase/client";
-import { HiPencil, HiTrash, HiPlus, HiArrowLeft } from "react-icons/hi";
+import {
+  HiPencil,
+  HiTrash,
+  HiPlus,
+  HiArrowLeft,
+  HiArrowRight,
+  HiUpload,
+  HiDocumentDownload,
+} from "react-icons/hi";
 import Button from "../../components/ui/Button";
 import Card from "../../components/ui/Card";
 import Modal from "../../components/ui/Modal";
@@ -12,11 +20,14 @@ export default function ManageMateri() {
   const navigate = useNavigate();
   const [materials, setMaterials] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
 
-  // Form State untuk 3 Level + Video
+  // State untuk Upload
+  const [uploading, setUploading] = useState(false);
+  const [selectedFile, setSelectedFile] = useState(null);
+
+  // Form State
   const [formData, setFormData] = useState({
     title: "",
     content_hard: "",
@@ -25,8 +36,10 @@ export default function ManageMateri() {
     video_medium: "",
     content_easy: "",
     video_easy: "",
+    file_url: "", // <-- Kolom Baru
   });
 
+  // --- FETCH DATA ---
   const fetchMaterials = async () => {
     setLoading(true);
     const { data, error } = await supabase
@@ -34,7 +47,7 @@ export default function ManageMateri() {
       .select("*")
       .order("id", { ascending: true });
 
-    if (error) setError(error.message);
+    if (error) alert(error.message);
     else setMaterials(data);
     setLoading(false);
   };
@@ -43,24 +56,66 @@ export default function ManageMateri() {
     fetchMaterials();
   }, []);
 
+  // --- HANDLE FILE UPLOAD ---
+  const handleFileChange = (e) => {
+    if (e.target.files && e.target.files.length > 0) {
+      setSelectedFile(e.target.files[0]);
+    }
+  };
+
+  const uploadFileToStorage = async (file) => {
+    // Buat nama file unik: timestamp_namafile
+    const fileName = `${Date.now()}_${file.name.replace(/\s/g, "_")}`;
+
+    const { data, error } = await supabase.storage
+      .from("materials") // Nama bucket yg tadi dibuat
+      .upload(fileName, file);
+
+    if (error) throw error;
+
+    // Ambil Public URL
+    const { data: publicUrlData } = supabase.storage
+      .from("materials")
+      .getPublicUrl(fileName);
+
+    return publicUrlData.publicUrl;
+  };
+
+  // --- SUBMIT FORM ---
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setUploading(true);
+
     try {
+      let finalFileUrl = formData.file_url;
+
+      // 1. Jika ada file baru dipilih, upload dulu
+      if (selectedFile) {
+        finalFileUrl = await uploadFileToStorage(selectedFile);
+      }
+
+      // 2. Siapkan data final
+      const payload = { ...formData, file_url: finalFileUrl };
+
+      // 3. Simpan ke Database
       if (editingId) {
         const { error } = await supabase
           .from("materials")
-          .update(formData)
+          .update(payload)
           .eq("id", editingId);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from("materials").insert([formData]);
+        const { error } = await supabase.from("materials").insert([payload]);
         if (error) throw error;
       }
+
       setIsModalOpen(false);
       fetchMaterials();
       alert("Berhasil menyimpan materi!");
     } catch (err) {
       alert("Gagal: " + err.message);
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -72,7 +127,7 @@ export default function ManageMateri() {
 
   const openModal = (material = null) => {
     setEditingId(material?.id || null);
-    // Load data jika edit, atau kosongkan jika baru
+    setSelectedFile(null); // Reset file chooser
     setFormData({
       title: material?.title || "",
       content_hard: material?.content_hard || "",
@@ -81,6 +136,7 @@ export default function ManageMateri() {
       video_medium: material?.video_medium || "",
       content_easy: material?.content_easy || "",
       video_easy: material?.video_easy || "",
+      file_url: material?.file_url || "",
     });
     setIsModalOpen(true);
   };
@@ -100,9 +156,7 @@ export default function ManageMateri() {
             <Button color="light" onClick={() => navigate("/admin/dashboard")}>
               <HiArrowLeft className="w-5 h-5 mr-2" /> Dashboard
             </Button>
-            <h1 className="text-3xl font-bold text-gray-800">
-              Kelola Materi (3 Level)
-            </h1>
+            <h1 className="text-3xl font-bold text-gray-800">Kelola Materi</h1>
           </div>
           <Button color="blue" onClick={() => openModal(null)}>
             <HiPlus className="w-5 h-5 mr-2" /> Tambah Materi
@@ -114,9 +168,14 @@ export default function ManageMateri() {
             <Card key={m.id} className="flex justify-between items-center">
               <div>
                 <h3 className="text-xl font-bold">{m.title}</h3>
-                <p className="text-sm text-gray-500">
-                  Video Hard: {m.video_hard ? "✅ Ada" : "❌ Kosong"}
-                </p>
+                <div className="flex gap-4 text-sm text-gray-500 mt-1">
+                  <span>Level: 3 Variasi</span>
+                  {m.file_url && (
+                    <span className="flex items-center text-blue-600">
+                      <HiDocumentDownload className="mr-1" /> Ada File PPT
+                    </span>
+                  )}
+                </div>
               </div>
               <div className="flex gap-2">
                 <Button color="light" onClick={() => openModal(m)}>
@@ -140,20 +199,50 @@ export default function ManageMateri() {
               onSubmit={handleSubmit}
               className="space-y-4 max-h-[70vh] overflow-y-auto px-2"
             >
-              <div>
-                <label className="block text-sm font-bold text-gray-800">
-                  Judul Materi
-                </label>
-                <input
-                  type="text"
-                  className="w-full border rounded p-2"
-                  value={formData.title}
-                  onChange={(e) =>
-                    setFormData({ ...formData, title: e.target.value })
-                  }
-                  required
-                />
+              {/* Judul & File Upload Area */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-bold text-gray-800 mb-1">
+                    Judul Materi
+                  </label>
+                  <input
+                    type="text"
+                    className="w-full border rounded p-2"
+                    value={formData.title}
+                    onChange={(e) =>
+                      setFormData({ ...formData, title: e.target.value })
+                    }
+                    required
+                  />
+                </div>
+
+                {/* INPUT FILE UPLOAD */}
+                <div>
+                  <label className="block text-sm font-bold text-gray-800 mb-1">
+                    Upload File (PPT/PDF)
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <label className="cursor-pointer bg-gray-100 border hover:bg-gray-200 px-3 py-2 rounded flex items-center gap-2 text-sm">
+                      <HiUpload /> Pilih File
+                      <input
+                        type="file"
+                        className="hidden"
+                        accept=".ppt,.pptx,.pdf,.doc,.docx"
+                        onChange={handleFileChange}
+                      />
+                    </label>
+                    <span className="text-xs text-gray-500 truncate max-w-[150px]">
+                      {selectedFile
+                        ? selectedFile.name
+                        : formData.file_url
+                        ? "File sudah ada"
+                        : "Belum ada file"}
+                    </span>
+                  </div>
+                </div>
               </div>
+
+              <hr className="my-2" />
 
               {/* LEVEL 1: HARD */}
               <div className="p-4 bg-red-50 border border-red-200 rounded-lg space-y-2">
@@ -238,9 +327,10 @@ export default function ManageMateri() {
             <button
               type="submit"
               form="materiForm"
-              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+              disabled={uploading}
+              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 flex items-center gap-2"
             >
-              Simpan
+              {uploading ? <Spinner /> : "Simpan"}
             </button>
           </Modal.Footer>
         </Modal>

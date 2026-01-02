@@ -27,7 +27,7 @@ export default function ManageSoal() {
   // Form State
   const [formData, setFormData] = useState({
     question: "",
-    options: ["", "", "", ""],
+    options: ["", "", "", "", ""],
     correct_answer: "",
     feedback_salah_popup: "",
     difficulty: "Low", // <-- FIELD BARU (Default Low)
@@ -129,7 +129,7 @@ export default function ManageSoal() {
     setEditingId(null);
     setFormData({
       question: "",
-      options: ["", "", "", ""],
+      options: ["", "", "", "", ""],
       correct_answer: "",
       feedback_salah_popup: "",
       difficulty: "Low", // Reset ke Low
@@ -139,12 +139,23 @@ export default function ManageSoal() {
 
   const openEditModal = (q) => {
     setEditingId(q.id);
+
+    // --- PERBAIKAN DI SINI ---
+    // 1. Ambil options lama, atau buat baru jika kosong
+    let currentOptions = q.options ? [...q.options] : ["", "", "", "", ""];
+
+    // 2. Jika panjangnya kurang dari 5 (misal soal lama cuma 4), tambahkan string kosong
+    while (currentOptions.length < 5) {
+      currentOptions.push("");
+    }
+    // -------------------------
+
     setFormData({
       question: q.question,
-      options: q.options || ["", "", "", ""],
+      options: currentOptions, // Pakai variabel yang sudah diperbaiki
       correct_answer: q.correct_answer,
       feedback_salah_popup: q.feedback_salah_popup,
-      difficulty: q.difficulty || "Low", // Load difficulty lama
+      difficulty: q.difficulty || "Low",
     });
     setIsModalOpen(true);
   };
