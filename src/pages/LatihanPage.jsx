@@ -3,6 +3,10 @@ import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "../supabase/client";
 import { useAuth } from "../hooks/useAuth";
 
+import ReactMarkdown from 'react-markdown';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
+
 // UI Components
 import Button from "../components/ui/Button";
 import Card from "../components/ui/Card";
@@ -12,6 +16,36 @@ import FeedbackSection from "../components/FeedbackSection";
 
 // Icons
 import { HiCheckCircle, HiXCircle, HiLightningBolt } from "react-icons/hi";
+
+const MarkdownRenderer = ({ content }) => {
+  return (
+    <ReactMarkdown
+      components={{
+        code({ node, inline, className, children, ...props }) {
+          const match = /language-(\w+)/.exec(className || '');
+          return !inline && match ? (
+            <SyntaxHighlighter
+              style={vscDarkPlus}
+              language={match[1]}
+              PreTag="div"
+              className="rounded-lg my-4"
+              {...props}
+            >
+              {String(children).replace(/\n$/, '')}
+            </SyntaxHighlighter>
+          ) : (
+            <code className="bg-gray-100 px-1 rounded text-pink-600 font-mono text-sm" {...props}>
+              {children}
+            </code>
+          );
+        },
+        p: ({ children }) => <p className="mb-4 text-gray-800 leading-relaxed">{children}</p>,
+      }}
+    >
+      {content || ""}
+    </ReactMarkdown>
+  );
+};
 
 export default function LatihanPage() {
   const { id } = useParams();
@@ -277,9 +311,9 @@ export default function LatihanPage() {
       </div>
 
       {/* Card Soal */}
-      <Card className="w-full max-w-2xl p-6 md:p-10">
+      <Card className="w-full max-w-2xl p-6 md:p-10 text-left">
         <h2 className="text-xl md:text-2xl font-bold text-gray-800 mb-8 leading-relaxed">
-          {currentQ.question}
+          <MarkdownRenderer content={currentQ.question} />
         </h2>
 
         <div className="grid grid-cols-1 gap-4">
@@ -325,7 +359,7 @@ export default function LatihanPage() {
                 Penjelasan:
               </p>
               <p className="text-gray-600 text-sm">
-                {currentFeedback?.explanation}
+                <MarkdownRenderer content={currentFeedback?.explanation} />
               </p>
             </div>
           )}

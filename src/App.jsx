@@ -1,20 +1,20 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
-import LandingPage from './pages/LandingPage'
-import RegisterPage from './pages/RegisterPage'
-import LoginPage from './pages/LoginPage'
-import MateriPage from './pages/MateriPage'
-import LatihanPage from './pages/LatihanPage'
-import ResultPage from './pages/ResultPage'
-import ProgressPage from './pages/ProgressPage'
-import MateriDetailPage from './pages/MateriDetailPage' 
-import ProtectedRoute from './components/ProtectedRoute'
-import ProfilePage from './pages/ProfilePage' // <-- Impor halaman baru
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import LandingPage from './pages/LandingPage';
+import RegisterPage from './pages/RegisterPage';
+import LoginPage from './pages/LoginPage';
+import MateriPage from './pages/MateriPage';
+import LatihanPage from './pages/LatihanPage';
+import ResultPage from './pages/ResultPage';
+import ProgressPage from './pages/ProgressPage';
+import MateriDetailPage from './pages/MateriDetailPage';
+import ProtectedRoute from './components/ProtectedRoute';
+import ProfilePage from './pages/ProfilePage'; // <-- Impor halaman baru
 import AdminRoute from './components/AdminRoute'; // <-- Impor penjaga admin
 import AdminDashboard from './pages/admin/AdminDashboard'; // <-- Impor halaman admin
 import ManageMateriPage from './pages/admin/ManageMateri'; // <-- Impor halaman kelola materi admin
 import ManageSoalPage from './pages/admin/ManageSoal'; // <-- Impor halaman kelola soal admin
-import RecapNilai from './pages/admin/RacapNilai'
-
+import RecapNilai from './pages/admin/RacapNilai';
+import EditMateriPage from './pages/admin/EditMateriPage';
 
 export default function App() {
   return (
@@ -32,7 +32,7 @@ export default function App() {
           <Route path="/latihan/:id" element={<LatihanPage />} />
           <Route path="/result/:id" element={<ResultPage />} />
           <Route path="/progress" element={<ProgressPage />} />
-          <Route path="/profile" element={<ProfilePage />} />{" "}
+          <Route path="/profile" element={<ProfilePage />} />{' '}
         </Route>
 
         {/* Rute Admin (Dilindungi Admin) */}
@@ -40,7 +40,9 @@ export default function App() {
           <Route path="/admin" element={<AdminDashboard />} />
           <Route path="/admin/materi" element={<ManageMateriPage />} />
           <Route path="/admin/soal" element={<ManageSoalPage />} />
-          <Route path="/admin/recap" element={<RecapNilai/>} />
+          <Route path="/admin/recap" element={<RecapNilai />} />
+          <Route path="/admin/edit-materi/:id" element={<EditMateriPage />} />
+          <Route path="/admin/add-materi" element={<EditMateriPage />} />
         </Route>
       </Routes>
     </BrowserRouter>
