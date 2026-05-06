@@ -22,6 +22,7 @@ export default function MateriDetailPage() {
   const [activeContent, setActiveContent] = useState(null); // { text, video, label, color }
   const [loading, setLoading] = useState(true);
   const [hasReflected, setHasReflected] = useState(false);
+  const [currentAttempts, setCurrentAttempts] = useState(0);
 
   const { id } = useParams();
   const { user } = useAuth();
@@ -55,6 +56,7 @@ export default function MateriDetailPage() {
         .single();
 
       const attempts = prog?.attempts || 0;
+      setCurrentAttempts(attempts);
 
       // 3. LOGIKA ADAPTIF (Tentukan Materi & Video)
       let content = {};
@@ -184,7 +186,7 @@ export default function MateriDetailPage() {
                 Tantangan Dunia Nyata
               </h3>
             </div>
-            <p className="text-gray-700 leading-relaxed italic">
+            <p className="text-gray-700 leading-relaxed italic whitespace-pre-line">
               "{materialData.real_world_problem}"
             </p>
           </div>
@@ -242,38 +244,39 @@ export default function MateriDetailPage() {
         )}
         {/* --------------------------------------- */}
         {/* Form */}
-        <div className="mt-12 p-6 bg-white border border-gray-200 rounded-xl shadow-sm">
-          <h3 className="text-xl font-bold text-gray-800 mb-2">
-            Sudah Selesai Belajar?
-          </h3>
-          <p className="text-gray-600 mb-6">
-            Yuk, isi refleksi diri untuk membuka akses ke Latihan Soal.
-          </p>
+        {currentAttempts === 0 && (
+          <div className="mt-12 p-6 bg-white border border-gray-200 rounded-xl shadow-sm">
+            <h3 className="text-xl font-bold text-gray-800 mb-2">
+              Sudah Selesai Belajar?
+            </h3>
+            <p className="text-gray-600 mb-6">
+              Yuk, isi refleksi diri untuk membuka akses ke Latihan Soal.
+            </p>
 
-          <div className="flex flex-wrap gap-4">
-            {materialData?.reflection_link && (
-              <a
-                href={materialData.reflection_link}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={() => setHasReflected(true)} // Mengubah state saat diklik
-                className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors"
+            <div className="flex flex-wrap gap-4">
+              {materialData?.reflection_link && (
+                <a
+                  href={materialData.reflection_link}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => setHasReflected(true)}
+                  className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  <span>📝</span>Isi Form Refleksi
+                </a>
+              )}
+
+              <button
+                onClick={() =>
+                  window.open(`https://wa.me/6281220619052`, '_blank')
+                }
+                className="flex items-center gap-2 px-6 py-3 bg-green-500 text-white font-semibold rounded-lg hover:bg-green-600 transition-colors"
               >
-                <span>📝</span>Isi Form Refleksi
-              </a>
-            )}
-
-            {/* Tombol Tanya Pengajar tetap bisa diakses kapan saja */}
-            <button
-              onClick={() =>
-                window.open(`https://wa.me/NOMOR_WA_ANDA`, '_blank')
-              }
-              className="flex items-center gap-2 px-6 py-3 bg-green-500 text-white font-semibold rounded-lg hover:bg-green-600 transition-colors"
-            >
-              <span>💬</span> Tanya Pengajar
-            </button>
+                <span>💬</span> Tanya Pengajar
+              </button>
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Action Button */}
         {/* Bagian Navigasi di paling bawah */}

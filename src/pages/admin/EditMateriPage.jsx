@@ -75,7 +75,7 @@ export default function EditMateriPage() {
       setFormData(data);
     } catch (err) {
       alert('Gagal mengambil data: ' + err.message);
-      navigate('/admin/manage-materi');
+      navigate('/admin/materi');
     } finally {
       setLoading(false);
     }
@@ -122,7 +122,7 @@ export default function EditMateriPage() {
       }
 
       alert('Berhasil disimpan!');
-      navigate('/admin/manage-materi');
+      navigate('/admin/materi');
     } catch (err) {
       alert('Gagal: ' + err.message);
     } finally {
