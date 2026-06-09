@@ -252,6 +252,7 @@ export default function LatihanPage() {
         currentLevel: difficultyLevel,
         correctCount: finalCorrectCount,
         totalCount: questions.length,
+        userAnswers: finalAnswers,
       },
     });
   };
