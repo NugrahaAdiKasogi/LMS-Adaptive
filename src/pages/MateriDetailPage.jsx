@@ -26,6 +26,8 @@ export default function MateriDetailPage() {
   const [studentName, setStudentName] = useState('');
   const [hypothesis, setHypothesis] = useState('');
   const [isHypothesisSubmitted, setIsHypothesisSubmitted] = useState(false);
+  const [projectUrl, setProjectUrl] = useState('');
+  const [isProjectSubmitted, setIsProjectSubmitted] = useState(false);
 
   const { id } = useParams();
   const { user } = useAuth();
@@ -52,7 +54,7 @@ export default function MateriDetailPage() {
       // 2. Ambil Progress User untuk menentukan Level Adaptif & Hipotesis Awal
       const { data: prog } = await supabase
         .from('progress')
-        .select('attempts, student_name, hypothesis')
+        .select('attempts, student_name, hypothesis, final_project_url') // <-- Tambahkan kolom ini
         .eq('user_id', user.id)
         .eq('material_id', id)
         .single();
@@ -61,6 +63,11 @@ export default function MateriDetailPage() {
         setIsHypothesisSubmitted(true);
         setStudentName(prog.student_name || '');
         setHypothesis(prog.hypothesis || '');
+      }
+
+      if (prog?.final_project_url) {
+        setProjectUrl(prog.final_project_url);
+        setIsProjectSubmitted(true);
       }
 
       const attempts = prog?.attempts || 0;
@@ -102,6 +109,28 @@ export default function MateriDetailPage() {
 
     fetchData();
   }, [id, user]);
+
+  const handleSaveProject = async () => {
+    if (!projectUrl.trim()) {
+      alert('Masukkan link Google Drive tugas kamu terlebih dahulu!');
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('progress')
+        .update({ final_project_url: projectUrl })
+        .eq('user_id', user.id)
+        .eq('material_id', id);
+
+      if (error) throw error;
+
+      alert('Tugas menyajikan solusi berhasil dikumpulkan!');
+      setIsProjectSubmitted(true);
+    } catch (err) {
+      alert('Gagal menyimpan tugas: ' + err.message);
+    }
+  };
 
   const MarkdownRenderer = ({ content }) => {
     return (
@@ -289,6 +318,67 @@ export default function MateriDetailPage() {
               </Card>
             )}
 
+            {/* ==================== NO 7: RUANG EKSPLORASI PYTHON EMBED ==================== */}
+            <Card className="mb-6 p-5 text-left border-l-4 border-indigo-500 bg-white shadow-sm">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="text-2xl">💻</span>
+                <div>
+                  <h3 className="text-base font-bold text-indigo-950">
+                    Ruang Eksplorasi & Penyelidikan Kode
+                  </h3>
+                  <p className="text-xs text-gray-500">
+                    Cobalah utak-atik struktur kode di bawah ini untuk menguji
+                    hipotesismu!
+                  </p>
+                </div>
+              </div>
+              <div className="w-full rounded-xl overflow-hidden border bg-gray-50 p-1">
+                <iframe
+                  src="https://trinket.io/embed/python3/a5bd54189b?toggleCode=true"
+                  width="100%"
+                  height="400"
+                  frameBorder="0"
+                  allowFullScreen
+                  title="Python Compiler"
+                ></iframe>
+              </div>
+            </Card>
+
+            {/* ==================== NO 9: FORM SUBMIT SOLUSI (PINDAHAN) ==================== */}
+            <Card className="mb-6 p-5 bg-green-50 border-2 border-dashed border-green-300 text-left rounded-xl">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-xl">🚀</span>
+                <h4 className="font-bold text-green-900 text-base">
+                  Sajikan Solusi & Screenshot Hasil Eksplorasi
+                </h4>
+              </div>
+              <p className="text-xs text-green-800 mb-4 leading-relaxed">
+                Tuliskan kode program utuh dari{' '}
+                <strong>"Tantangan Dunia Nyata"</strong> di atas. Jalankan di
+                compiler, ambil <strong>screenshot hasil eksekusinya</strong>,
+                lalu kumpulkan link folder Google Drive kamu di bawah ini
+                sebagai bukti penyajian solusi.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <input
+                  type="url"
+                  placeholder="https://drive.google.com/drive/folders/..."
+                  className="flex-1 border border-gray-300 rounded-lg p-2.5 text-xs outline-none bg-white text-gray-700 focus:ring-2 focus:ring-green-400"
+                  value={projectUrl}
+                  onChange={(e) => setProjectUrl(e.target.value)}
+                  disabled={isProjectSubmitted}
+                />
+                <Button
+                  color={isProjectSubmitted ? 'light' : 'blue'}
+                  onClick={handleSaveProject}
+                  disabled={isProjectSubmitted}
+                  className="text-xs py-2 px-4 font-bold"
+                >
+                  {isProjectSubmitted ? '✅ Terkumpul' : 'Kumpulkan'}
+                </Button>
+              </div>
+            </Card>
+
             {/* Text Content (Markdown) */}
             <Card className="mb-6 p-6">
               <MarkdownRenderer content={activeContent?.text} />
@@ -360,8 +450,8 @@ export default function MateriDetailPage() {
 
             {/* Bagian Navigasi Latihan Soal di paling bawah */}
             <div className="mt-10 flex justify-center border-t pt-8">
-              {/* Tombol aktif jika sudah isi refleksi ATAU sedang sesi remedial (attempts > 0) */}
-              {hasReflected || currentAttempts > 0 ? (
+              {/* Tombol aktif jika sudah isi tugas/refleksi ATAU sedang sesi remedial */}
+              {(hasReflected && isProjectSubmitted) || currentAttempts > 0 ? (
                 <Link to={`/latihan/${materialData.id}`}>
                   <Button color="blue" size="lg" className="animate-bounce">
                     Lanjut ke Latihan Soal <HiArrowRight className="ml-2" />
@@ -369,8 +459,8 @@ export default function MateriDetailPage() {
                 </Link>
               ) : (
                 <div className="text-center p-4 bg-gray-100 rounded-lg text-gray-500 italic w-full">
-                  Selesaikan refleksi terlebih dahulu untuk membuka Latihan
-                  Soal.
+                  Selesaikan pengumpulan solusi tugas Drive dan refleksi diri
+                  terlebih dahulu untuk membuka Latihan Soal.
                 </div>
               )}
             </div>
